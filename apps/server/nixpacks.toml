@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "corepack"]
+
+[phases.install]
+cmds = ["corepack enable && pnpm install"]
+
+[phases.build]
+cmds = ["echo 'skipping tsc — using tsx at runtime'"]
+
+[start]
+cmd = "npx tsx src/index.ts"
