@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Reorder } from 'framer-motion';
 import type { SamplePack } from '@ghost/types';
 import { api } from '../../lib/api';
+import { useAudioStore } from '../../stores/audioStore';
 
 export type { SamplePack };
 
@@ -303,15 +304,17 @@ function ProjectListSidebar({
 }
 
 function StorageBar() {
-  const [used, setUsed] = useState(0);
-  const [limit, setLimit] = useState(2 * 1024 * 1024 * 1024);
+  const loadedTracks = useAudioStore((s) => s.loadedTracks);
+  const limit = 2 * 1024 * 1024 * 1024; // 2 GB
 
-  useEffect(() => {
-    api.getStorageUsage().then((data: any) => {
-      setUsed(data.usedBytes || 0);
-      setLimit(data.limitBytes || 2 * 1024 * 1024 * 1024);
-    }).catch(() => {});
-  }, []);
+  // Calculate usage from loaded audio buffers
+  let used = 0;
+  loadedTracks.forEach((track) => {
+    if (track.buffer) {
+      // AudioBuffer size = channels * length * 4 bytes per float32 sample
+      used += track.buffer.numberOfChannels * track.buffer.length * 4;
+    }
+  });
 
   const usedGB = used / (1024 * 1024 * 1024);
   const limitGB = limit / (1024 * 1024 * 1024);

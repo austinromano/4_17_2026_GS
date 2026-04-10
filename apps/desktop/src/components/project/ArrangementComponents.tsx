@@ -9,6 +9,49 @@ import Waveform from '../tracks/Waveform';
 const VISIBLE_BARS = 16;
 const LABEL_WIDTH = 110;
 
+/* ── Convert AudioBuffer to WAV Blob for drag-to-DAW ── */
+function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const length = buffer.length;
+  const bytesPerSample = 2; // 16-bit
+  const dataSize = length * numChannels * bytesPerSample;
+  const headerSize = 44;
+  const arrayBuffer = new ArrayBuffer(headerSize + dataSize);
+  const view = new DataView(arrayBuffer);
+
+  // WAV header
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+  view.setUint16(32, numChannels * bytesPerSample, true);
+  view.setUint16(34, 16, true); // bits per sample
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // Interleave channels and write 16-bit samples
+  const channels: Float32Array[] = [];
+  for (let ch = 0; ch < numChannels; ch++) channels.push(buffer.getChannelData(ch));
+  let offset = 44;
+  for (let i = 0; i < length; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
 /* ── track‑type colours (matches VST getTrackColour) ── */
 function trackColour(type: string) {
   switch (type) {
@@ -54,7 +97,6 @@ function TimelineClip({
   const setTrackOffset = useAudioStore((s) => s.setTrackOffset);
   const trackDur = trackBuffer?.duration || 0;
 
-  // Timeline total is measured in bars, so use totalBars * secondsPerBar as the reference width
   const timelineDur = totalBars * secondsPerBar;
   const widthPct = timelineDur > 0 && trackDur > 0 ? Math.min((trackDur / timelineDur) * 100, 100) : 100;
   const leftPct = timelineDur > 0 ? (startOffset / timelineDur) * 100 : 0;
@@ -77,9 +119,9 @@ function TimelineClip({
     const onMouseMove = (e: MouseEvent) => {
       const parent = containerRef.current?.parentElement;
       if (!parent) return;
-      const parentWidth = parent.getBoundingClientRect().width;
+      const parentRect = parent.getBoundingClientRect();
       const dx = e.clientX - dragStartX.current;
-      const dtSeconds = (dx / parentWidth) * timelineDur;
+      const dtSeconds = (dx / parentRect.width) * timelineDur;
       const newOffset = Math.max(0, dragStartOffset.current + dtSeconds);
       setTrackOffset(track.id, newOffset);
     };
@@ -111,8 +153,8 @@ function TimelineClip({
         cursor: dragging ? 'grabbing' : 'grab',
         borderRadius: 4,
         overflow: 'hidden',
-        background: `${colour}0D`,               /* 5% track colour fill */
-        border: `1px solid ${colour}33`,          /* 20% track colour border */
+        background: `${colour}0D`,
+        border: `1px solid ${colour}33`,
       }}
       onMouseDown={handleMouseDown}
     >
@@ -132,9 +174,10 @@ function TimelineClip({
       </div>
 
       {/* Hover controls */}
-      <div className="absolute top-1/2 -translate-y-1/2 right-1 z-20 flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity rounded overflow-hidden" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
+      <div className="absolute top-1/2 -translate-y-1/2 right-1 z-20 flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity rounded overflow-hidden" data-no-drag style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
         <button
           onClick={() => { useAudioStore.getState().removeTrack(track.id); deleteTrack(selectedProjectId, track.id); }}
+          data-no-drag
           title="Delete"
           className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
         >
@@ -142,6 +185,7 @@ function TimelineClip({
         </button>
         <button
           onClick={() => useAudioStore.getState().duplicateTrack(track.id)}
+          data-no-drag
           title="Duplicate"
           className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
         >

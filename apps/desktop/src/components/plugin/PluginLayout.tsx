@@ -645,6 +645,41 @@ export default function PluginLayout() {
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" /></svg>
                       </button>
                       <div className="w-px h-4 bg-white/10" />
+                      <button
+                        onClick={() => {
+                          // Export tracks to native JUCE drag strip
+                          const tracks = currentProject.tracks;
+                          if (!tracks || tracks.length === 0) return;
+                          const items = tracks.filter((t: any) => t.fileId).map((t: any) => ({
+                            url: api.getDirectDownloadUrl(selectedProjectId!, t.fileId),
+                            name: (t.name || t.fileName || 'track') + '.wav',
+                          }));
+                          // Try JUCE native function
+                          if ((window as any).__ghostExportForDrag) {
+                            (window as any).__ghostExportForDrag(items);
+                          } else {
+                            // Browser fallback: download files
+                            items.forEach(async (item: any) => {
+                              try {
+                                const res = await fetch(item.url);
+                                const blob = await res.blob();
+                                const a = document.createElement('a');
+                                a.href = URL.createObjectURL(blob);
+                                a.download = item.name;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(a.href);
+                              } catch {}
+                            });
+                          }
+                        }}
+                        className="w-6 h-6 flex items-center justify-center rounded transition-colors text-white/30 hover:text-ghost-green"
+                        title="Export to DAW"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                      </button>
+                      <div className="w-px h-4 bg-white/10" />
                       <button onClick={() => setShowAllBars(!showAllBars)} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${showAllBars ? 'text-ghost-green bg-ghost-green/10' : 'text-white/40 hover:text-white/60 bg-white/[0.03]'}`}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           {showAllBars ? <><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></> : <><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></>}

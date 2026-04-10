@@ -5,6 +5,31 @@
 #include "../UI/GhostWebView.h"
 
 //==============================================================================
+/** A native JUCE strip that shows exported tracks for drag-to-DAW. */
+class DragStrip : public juce::Component
+{
+public:
+    struct TrackItem
+    {
+        juce::String name;
+        juce::File file;
+    };
+
+    void setTracks(const juce::Array<TrackItem>& items);
+    void clear();
+    bool hasItems() const { return tracks.size() > 0; }
+
+    void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& e) override;
+    void mouseDrag(const juce::MouseEvent& e) override;
+
+private:
+    juce::Array<TrackItem> tracks;
+    int dragIndex = -1;
+    int getTrackAt(int x) const;
+};
+
+//==============================================================================
 class GhostSessionEditor : public juce::AudioProcessorEditor,
                            public juce::DragAndDropContainer
 {
@@ -15,13 +40,13 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
+    DragStrip& getDragStrip() { return dragStrip; }
+
 private:
     GhostSessionProcessor& proc;
-
-    // The entire UI is rendered in a WebView with native drag support
     std::unique_ptr<GhostWebView> webView;
+    DragStrip dragStrip;
 
-    // Build the URL to navigate to (includes auth token if available)
     juce::String getAppUrl() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GhostSessionEditor)

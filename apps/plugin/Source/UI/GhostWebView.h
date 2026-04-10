@@ -1,15 +1,11 @@
 #pragma once
 
 #include "JuceHeader.h"
+#include <map>
 
 class GhostSessionProcessor;
 
 //==============================================================================
-/**
- * Custom WebBrowserComponent that intercepts ghost:// URLs
- * to handle native drag-to-DAW and recording operations,
- * and pushes real-time audio levels to the React UI.
- */
 class GhostWebView : public juce::WebBrowserComponent,
                      private juce::Timer
 {
@@ -18,13 +14,18 @@ public:
     ~GhostWebView() override;
 
     bool pageAboutToLoad(const juce::String& newURL) override;
-
-    /** Call before destruction to stop the internal timer. */
     void shutdown() { stopTimer(); }
+
+    /** Pre-cache a file to temp so drag-to-DAW is instant. */
+    void precacheFile(const juce::String& downloadUrl, const juce::String& fileName);
 
 private:
     juce::File tempDir;
     GhostSessionProcessor& proc;
+
+    // Pre-cached file paths: downloadUrl -> local file
+    std::map<juce::String, juce::File> fileCache;
+    juce::CriticalSection cacheLock;
 
     void timerCallback() override;
 
@@ -34,13 +35,9 @@ private:
     void handleUploadRecording(const juce::String& urlString);
     void handlePlayRecording();
     void handleStopPlayback();
-
-    /** Handle messages posted from the frontend JS via native function. */
     void handleWebMessage(const juce::String& message);
 
     juce::File downloadToTemp(const juce::String& downloadUrl, const juce::String& fileName);
-
-    // Parse a query parameter from a URL string
     static juce::String getQueryParam(const juce::String& url, const juce::String& paramName);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GhostWebView)
