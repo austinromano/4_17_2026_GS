@@ -5,7 +5,7 @@ import Avatar from '../common/Avatar';
 import { useWebRTC } from '../../hooks/useWebRTC';
 import { useSessionStore } from '../../stores/sessionStore';
 
-export default function VideoGrid({ members, userId, onAddFriend }: { members: any[]; userId?: string; onAddFriend?: () => void }) {
+export default function VideoGrid({ members, userId, onAddFriend, variant = 'grid' }: { members: any[]; userId?: string; onAddFriend?: () => void; variant?: 'grid' | 'row' }) {
   const [cameraOn, setCameraOn] = useState(false);
   const [micOn, setMicOn] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -321,7 +321,7 @@ export default function VideoGrid({ members, userId, onAddFriend }: { members: a
         </div>,
         document.body
       )}
-    <div className="grid grid-cols-2 gap-1.5">
+    <div className={variant === 'row' ? 'flex gap-1.5 overflow-x-auto' : 'grid grid-cols-2 gap-1.5'}>
       {Array.from({ length: 4 }).map((_, i) => {
         const myIndex = members.findIndex(m => m.userId === userId);
         const me = myIndex >= 0 ? members[myIndex] : null;
@@ -338,7 +338,7 @@ export default function VideoGrid({ members, userId, onAddFriend }: { members: a
         const hasRemoteVideo = remoteStream && remoteStream.getVideoTracks().length > 0;
 
         return (
-          <div key={i} className="relative aspect-square">
+          <div key={i} className={variant === 'row' ? 'relative w-[120px] h-[120px] shrink-0' : 'relative aspect-square'}>
           <div className="relative w-full h-full rounded-xl overflow-hidden group/video" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.15)' }}>
             {/* Local video (your camera) */}
             {isMe && cameraOn && (

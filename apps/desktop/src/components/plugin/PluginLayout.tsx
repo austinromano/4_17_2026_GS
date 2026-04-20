@@ -516,6 +516,12 @@ export default function PluginLayout() {
                             </div>
                           )}
 
+                          {!videoGridHidden && (
+                            <div className="mb-3">
+                              <VideoGrid members={members} userId={user?.id} variant="row" />
+                            </div>
+                          )}
+
                           <CollaboratorsBar
                             members={members}
                             onlineUsers={onlineUsers}
@@ -643,11 +649,6 @@ export default function PluginLayout() {
                             <Avatar name={user?.displayName || '?'} src={user?.avatarUrl} size="sm" />
                           </button>
                         </div>
-                        {!videoGridHidden && (
-                          <div className="w-full shrink-0">
-                            <VideoGrid members={members} userId={user?.id} />
-                          </div>
-                        )}
                         <div className="w-full flex flex-col min-h-0 flex-1 overflow-hidden glass glass-glow rounded-2xl">
                           <ChatPanel />
                         </div>
